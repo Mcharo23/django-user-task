@@ -1,9 +1,10 @@
 from rest_framework.views import APIView
-from rest_framework.decorators import api_view
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework import viewsets, status
 
-from .serializers import UserSerializer
+from .serializers import UserSerializer, UserAuthSerializer
 
 from .models import User
 
@@ -17,20 +18,6 @@ env = environ.Env()
 environ.Env.read_env()
 
 
-@api_view(['GET'])
-def getRoutes(request):
-    routes = [
-        '/auth/',
-        '/auth/register/',
-        '/auth/logout/',
-        '/task/',
-        '/task/create-task',
-        '/task/update-status/',
-        '/task/delete-task/',
-    ]
-    return Response(routes)
-
-
 def AuthorizeUser(request):
     token = request.COOKIES.get('jwt')
 
@@ -38,7 +25,7 @@ def AuthorizeUser(request):
         raise AuthenticationFailed('Unauthenticated')
 
     try:
-        payload = jwt.decode(token, 'secret', algorithms=['HS256'])
+        payload = jwt.decode(token, env('SECRET_KEY'), algorithms=['HS256'])
         user = User.objects.get(user_id=payload['user_id'])
     except jwt.ExpiredSignatureError:
         raise AuthenticationFailed('Unauthenticated')
@@ -48,6 +35,38 @@ def AuthorizeUser(request):
 
 def _hash_password(password):
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(14)).decode('utf-8')
+
+
+class UserViewSet(viewsets.ViewSet):
+    serializer_class = UserSerializer
+
+    @action(detail=False, methods=['post'])
+    def register(self, request):
+        serializer = UserSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        password = serializer.validated_data['password']
+        serializer.validated_data['password'] = _hash_password(
+            password=password)
+        serializer.save()
+
+        return Response(serializer.data)
+
+
+class UserAuthViewSet(APIView):
+    # serializer_class = UserSerializer
+
+    @action(detail=False, methods=['POST'])
+    def register(self, request):
+        serializer = UserSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        password = serializer.validated_data['password']
+        serializer.validated_data['password'] = _hash_password(
+            password=password)
+        serializer.save()
+
+        return Response(serializer.data)
 
 
 class RegisterView(APIView):
@@ -66,6 +85,7 @@ class RegisterView(APIView):
 
 
 class LoginView(APIView):
+    serializer_class = UserAuthSerializer
 
     def post(self, request):
 
@@ -84,7 +104,6 @@ class LoginView(APIView):
             'user_id': str(user.user_id),
             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=40),
             'iat': datetime.datetime.utcnow()
-
         }
 
         token = jwt.encode(payload, env('SECRET_KEY'), algorithm='HS256')

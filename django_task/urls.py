@@ -16,9 +16,27 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+
+@api_view(['GET'])
+def getRoutes(request):
+    routes = [
+        '/auth/',
+        '/auth/register/',
+        '/auth/logout/',
+        '/task/',
+        '/task/create-task',
+        '/task/update-status/',
+        '/task/delete-task/',
+    ]
+    return Response(routes)
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('authentication.urls')),
+    path('', getRoutes, name='routes'),
+    path('auth/', include('authentication.urls')),
     path('task/', include('task.urls')),
 ]

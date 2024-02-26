@@ -18,4 +18,4 @@ class Tasks(models.Model):
         User, on_delete=models.CASCADE, related_name='tasks')
     task_name = models.CharField(max_length=100)
     status = EnumChoiceField(TaskProgress, default=TaskProgress.PROGRESS)
-    start_date = models.DateTimeField(auto_now_add=True)
+    start_date = models.DateTimeField()

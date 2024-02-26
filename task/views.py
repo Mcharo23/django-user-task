@@ -6,8 +6,6 @@ from .serializers import TaskSerializer, CreateTaskSerializer, UpdateTaskStatusS
 from .models import Tasks
 from authentication.models import User
 
-import jwt
-
 from authentication.views import AuthorizeUser
 
 
@@ -39,6 +37,7 @@ class CreateTask(APIView):
         task_data = {
             'owner': user,
             'task_name': serializer.validated_data['task_name'],
+            'start_date': serializer.validated_data.get('start_date'),
         }
 
         task = Tasks.objects.create(**task_data)
@@ -55,7 +54,7 @@ class UpdateStatus(APIView):
         user = AuthorizeUser(request=request)
 
         try:
-            task = self.get_object(task_id=task_id)
+            task = self.get_object(task_id=task_id, user=user)
         except Tasks.DoesNotExist:
             return Response({'detail': 'Task not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -68,8 +67,8 @@ class UpdateStatus(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def get_object(self, task_id):
-        return Tasks.objects.get(task_id=task_id)
+    def get_object(self, task_id, user):
+        return Tasks.objects.get(task_id=task_id, owner=user)
 
 
 class DeleteTask(APIView):
@@ -84,7 +83,7 @@ class DeleteTask(APIView):
             return Response({'detail': 'Task not found'}, status=status.HTTP_404_NOT_FOUND)
 
         task.delete()
-        return Response({'detail': 'Task deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+        return Response({'detail': 'Task deleted successfully'}, status=status.HTTP_200_OK)
 
     def get_object(self, task_id):
         return Tasks.objects.get(task_id=task_id)
